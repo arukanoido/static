@@ -1,16 +1,58 @@
 ---
+import Page from "../components/Page.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import {YouTube} from 'astro-lazy-youtube-embed'
 
+const title = "Justin Rowntree - Game Programmer";
+const description = "Home";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Page {title} {description}>
+    <SiteHeader />
+    <div class="flex">
+        <div class="w-full">
+            <h1 class="text-3xl font-bold my-5">Projects</h1>
+            <a target="_blank" rel="noopener noreferrer" href="https://store.steampowered.com/app/1342400/Burning_Lands">
+                <h1 class="underline underline-offset-2 font-semibold">
+                    Burning Lands
+                </h1>
+                <img 
+                class="my-2"
+                style="width: 100px;"
+                src="/assets/img/steamlogo.png"/>
+            </a>
+            <p class="mb-2">
+                Tech Lead | Programmer | Technical Animator
+            </p>
+            <ul class="list-disc list-inside leading-7">
+                <li class="pl-4">Led development from concept through pre-alpha</li>
+                <li class="pl-4">Extensive onboarding for new team members</li>
+                <li class="pl-4">Point of contact for engineering knowledge</li>
+            </ul>
+            <YouTube
+            class="my-4"
+            title="Burning Lands ➤ Intense Multi-Perspective firefights in Khe Sanh (Pre-Alpha)"
+            videoId="uo3VDo_DzHU"
+            thumbnailRes="maxres"
+            />
+            <a target="_blank" rel="noopener noreferrer" href="https://steamcommunity.com/sharedfiles/filedetails/?id=1431936224">
+                <h1 class="underline underline-offset-2 mt-10 font-semibold">
+                    Squad Promod
+                </h1>
+                <img 
+                class="my-2"
+                style="width: 100px;"
+                src="https://steamuserimages-a.akamaihd.net/ugc/772857250687804739/316E619E3BF3A214CEDE5548E3ED36F5A26DCD3D/"/>
+            </a>
+            <p class="">
+                Programmer | User Interface Designer
+            </p>
+            <YouTube
+            class="my-4"
+            title="Squad ProMod - OPFL and admin options"
+            videoId="Yr6GMd-kx0E"
+            thumbnailRes="maxres"
+            />
+        </div>
+    </div>
+</Page>

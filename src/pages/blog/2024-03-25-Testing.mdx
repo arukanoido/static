@@ -1,0 +1,57 @@
+---
+layout: '../../layouts/BlogPost.astro'
+title: Part 1 - Testing
+pubDate: 25 March 2024
+description: Part 1 of a series about building multiplayer games using Unreal Engine.
+---
+
+Ideally, developers would test the game in an environment as close as possible to the one players will play in. This improves the chances of encountering bugs or issues before your players do, and correctly estimating their severity. Some games will have only minor differences between the development environment and the play environment. For other games, the developers will need to take special care during development to eliminate differences and/or put time into preparing a test environment that's closer to the play environment. In addition, developers need to reduce the friction between testing in an isolated editor context and testing in a live-like context.
+
+## Editor vs Deployment
+
+Unreal Engine includes an editor environment with tools for building and testing the game, and a deployment environment limited to a runtime, with many of those tools removed, in the case of Shipping builds. There can be many subtle or even major differences between the editor and shipping environments that complicate testing. What works correctly in editor may not work the same way in shipping.
+
+The editor, specifically the Play-In-Editor (PIE) feature of Unreal, has some architectural differences compared with starting a play session in a shipping build.
+
+- The engine class is different.
+- Networked PIE sessions are automatically managed for you, and unique code paths are used to start and connect clients and server. Latency will be almost non-existant due to the clients and server existing on the same machine.
+- Actors may have different initialization or lifecycle patterns. Networked sessions introduce latency to actor initialization processes. For example, client logic might need to accomodate a delay while an actor replicates down to them on game start.
+- Although editor PIE can initialize a multiplayer session for testing, the clients and server are all confined to one machine. Connecting multiple editors or developers on different machines together for true multiplayer is a special case that goes beyond just clicking the Play-In-Editor button.
+
+### 1. Different engine class
+
+Since [Subsystems](https://dev.epicgames.com/documentation/en-us/unreal-engine/programming-subsystems-in-unreal-engine) were added, there's no need to override a specific engine class. 
+
+### 2. Networked PIE sessions
+
+The way PIE automatically connects clients and server and negotiates the process of starting play is different compared with a game that uses a lobby system, matchmaking, or dedicated server browser. Networked games will need to take extra steps to properly test these systems before players run into problems with them. 
+
+Also affected is the initilization procedure setting up the world and actors for players connecting, including the way the Player State is assigned an identity. Overriding APlayerState::RegisterPlayerWithSession() and APlayerState::UnregisterPlayerWithSession() functions is recommended for any player state initialization work that should take place during the connection process. 
+
+### 3. Actor lifecycle
+
+Actor lifecycles are a common source of bugs. For example, the local player controller creates a HUD class when it initializes. If code tries to reference the HUD before this, it will fail to run (or crash). This problem is compounded by replication delays. In older versions of Unreal Engine, the Game State would often replicate to clients at some point after all the actors Begin Play in the client world. Post 5.0, Begin Play is only called on clients after the Game State is received. If you need code to run on the client as early as possible, the client might need to make several checks for the relevant network actors to be available first. In a networked context, clients will receive actors and objects at some future point in time, so instead of writing code in a procedural way, it's necessary to have different code paths for server vs client tasks. 
+
+A good example of this is the way the [Lyra](https://www.unrealengine.com/marketplace/en-US/learn/lyra) example project handles the process of getting a player character ready to play after spawning in. The Lyra player character actor holds a component called the Pawn Extension Component which can be subclassed to add logic to the actor. A complex web of dependencies must be resolved before it's safe for the player to begin interacting with the game through the character. A function called ULyraPawnExtensionComponent::CheckDefaultInitialization() is called several times before the component is considered ready. It's called in BeginPlay(), SetPawnData(), OnRep_PawnData(), HandleControllerChanged(), HandlePlayerStateReplicated(), and SetupPlayerInputComponent(). In other words, the player character is only considered ready to actually start playing the game after the actor begins play, the pawn data is received and assigned, the player state is received and assigned, and the input component has been spawned and assigned.
+
+### 4. Multiplayer in Editor
+
+A lot of testing can be done by a single developer launching a multiplayer PIE session and switching between client windows. But I always felt that this approach was both time-consuming and a synthetic environment for testing that isn't representative of typical gameplay where issues will actually be encountered. A better solution would be to use the game's actual system, whether lobby, matchmaking, or dedicated server, to connect multiple developers or QA testers together. Just as the PIE feature automatically handles setting up a test environment in editor, the game's system of connecting players together should be able to automatically connect developers together for testing the later stages of feature development, when the feature is changing less frequently. In the last section of this post I'll discuss a possible shape that this live-like test environment might take. 
+
+The main consideration in this decision is the rate of change a feature is undergoing. Typically as a feature is just beginning development, it changes rapidly and testing and debugging can be performed with simple tools. Later in feature development, development slows down as the obvious defects are found and fixed. The need for a live-like testing environment becomes paramount at this stage. I would argue that a feature cannot be considered done unless it has been tested in an integrated way in the flow of play similar to the way players will encounter it.
+
+## Live-like Multiplayer Testing
+
+A game mechanic is only as sound as the test harness created to validate it. Single-player games tend to be easier to test. It's easier to recreate test conditions when the only point of change in the game world is one player character and its associated inputs. Linear single-player games may be tested by a single developer simply replaying parts of the game over and over.
+
+Multiplayer games present greater difficulty. The other players and interactions between them results in emergent behaviors that add complexity to testing. Consider a multiplayer game that allows 100 players to spawn in to a large map, move anywhere they want, fight over resources, and continue interacting with the game for a duration before the round ends. Within that duration, there could be a combinatorial explosion in the number of possible interactions that could take place. The more thoroughly you try to test a game like this, the more difficult each marginal improvement in test coverage will be.
+
+Of course, the problem is less daunting than it initially appears. Most game mechanics preclude the possibility of interactions with other players, even in these games. For instance, it might be possible to validate all of the movement logic for a player character in isolation. But for other parts of the game, it might be necessary to recreate the conditions that will exist in a typical round by bringing together 100 players. Game development is an exhaustive process, and many iterations will often be required to improve features. Collecting 100 people and having them constantly play the game is infeasible, even for developers well equipped with resources.
+
+### Enter Gauntlet
+
+Unreal includes [Gauntlet](https://dev.epicgames.com/documentation/en-us/unreal-engine/gauntlet-automation-framework-in-unreal-engine), which may be a solution to this problem. With Gauntlet, you can run any number of instances of the game, have them connect together, and perform tests via a custom PlayerController class. This is different from the Unreal AI framework, used to create NPCs or bots. Both Gauntlet and the AI framework include a Player Controller class that can possess a character and play the game, but the Gauntlet system allows you to perform tests of the game software outside of play alone. And the Gauntlet Player Controller can also be used to create simple Bots or NPCs to test gameplay mechanics. In the example above of needing 100 players, Gauntlet could launch 100 clients, a server, and connect them, testing functionality along the way. Once the clients are connected to the server, Gauntlet can give each client a Player Controller class tailored to test one of a range of simple behaviors. While a true AI Player Controller might have the ability to perform any action in the game, is built for gameplay, and is intended to resemble a real player, Gauntlet bots would just perform one simple, repeatable task, such as interacting with an object at a position. You may have Gauntlet clients automatically test combat mechanics, interaction, or whatever else is required.
+
+Ideally, this is the environment in which developers would do some or most of their testing, depending on the stage of development and the mechanic being tested. Developers and QA testers would connect, kicking redundant Gauntlet clients in the process to make room, and then test as needed in the live-like context of having many other "players" connected. This fully integrated test environment would properly stress the server CPU and bandwidth, the client CPU, GPU and bandwidth, test in play and out of play game features, and provide a more accurate sample for profiling. Developers are likely to encounter bugs and crashes that might pass unnoticed in the constrained Play-In-Editor context. If this test environment is used alongside development for the duration, it has the potential to quickly alert developers to regressions and rarer bugs that would otherwise go unnoticed until the game is actually in the hands of players, which is too late.
+
+In the next post, I'll talk about collecting data to fuel development. [Part 2](/blog/2024-04-01-Data)

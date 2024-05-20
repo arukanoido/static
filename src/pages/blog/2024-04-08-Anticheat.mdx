@@ -1,0 +1,50 @@
+---
+layout: '../../layouts/BlogPost.astro'
+title: Part 3 - Anticheat
+pubDate: 08 April 2024
+description: Part 3 of a series about building multiplayer games using Unreal Engine.
+---
+
+[Part 2](/blog/2024-04-01-Data) (if you missed it).
+
+## The Problem
+
+Cheating in multiplayer games is big business. Due to the nature of the industry, it is difficult to estimate its size, but as of 2024, it's reasonable to assume that at least 20% of the playerbase of a given multiplayer game are either currently cheating or would obtain cheat software if an attractively priced (or free) option were available. In some games, especially in the extraction shooter genre, it could be as high as 50% in some server regions. Cheat software requires no marketing. Legitimate players can be persuaded to start cheating if they often encounter cheaters during play. 
+
+Consider a 5v5 multiplayer shooter. If only one of the enemy players are cheating, 10% of the players in the match are cheating. If only one player is cheating in ten matches in a row, even though only 10% of the players encountered are cheating, the real impact will be that the nine other players in each match might start to consider the game to be fundamentally unfair and be seriously persuaded to start cheating themselves. This is how a cheating problem can compound on itself if allowed to do so.
+
+The history of multiplayer gaming spans over 20 years. Players that cheated in games early on sometimes never developed the skills necessary to compete, and are likely to try to cheat again. Yesterday's games that allowed cheating to get out of control perpetuate the problem for future games. If players were persuaded to cheat in a game they played 5 years ago, they're likely to consider cheating in your game as well.
+
+Developers entering the multiplayer gaming space over the coming years should beware: the impact of cheating is growing, and it can seriously affect the health of a game. [The Cycle: Frontier](https://steamcommunity.com/app/868270) was an extraction shooter released in 2022. It quickly experienced an intense surge in cheating activity which drove away the majority of players until the developers finally shut down the servers and delisted the game in late 2023. This title launched with a well integrated 3rd party anticheat solution, BattlEye, used in many popular multiplayer games, like Rainbow Six: Siege, and Escape From Tarkov, and earlier, Fortnite. In spite of the developer's use of BattlEye, The Cycle: Frontier was still essentially destroyed by cheating. 
+
+## What To Do About It
+
+### Server Authority
+
+Anticheat solutions like Easy Anticheat or BattlEye are primarily intended to protect the game's executable from having its memory space read or tampered with. They also ensure that the player owns the game being played and they might also report data about play from the game's dedicated server to the anticheat server for analysis. Cheat software works by bypassing or preventing these tools from protecting the game, so that the cheat has direct access to the game's memory. Once the game client has been compromised, the dedicated server is the only environment remaining secure. For this reason, developers should consider server authority the primary defence against cheating. Game features must be designed with security as a priority. The server should send the minimum information to the client necessary for play to continue from moment to moment, and trust nothing the client responds with.
+
+For a multiplayer game, the game client needs to send inputs or preconditions to the server so the results can be calculated and replicated to other clients. Whenever these inputs will result in a computation or simulation, the server should independently compute or simulate, after clamping the inputs to expected ranges. For the sake of hiding latency to keep gameplay smooth, the client can also run the simulation locally. The client results should never be sent to the server; only the preconditions needed to begin simulation. That said, it's sometimes appropriate for developers to use client results to fast-track computation on the server, as an optimization strategy. But developers should only do this with the assumption that the client will be exploited and they must know the consequences. As I've said before, premature optimization is a waste of time, (or the "root of all evil", if you prefer) and this also applies to optimizations that might compromise the security of the game.
+
+### Network Occlusion Culling
+
+I want to reiterate that the server should send the minimum information to the client necessary for play to continue from moment to moment. By default Unreal Engine will replicate all game objects to every connection. This opens the door for clients to locate game objects they shouldn't know the position of, and a common cheating practice ("wallhacks") is reading the location of objects hidden by walls and superimposing them in front of the game window so that they are always visible. Cheats can either read the locations of these objects directly from the game client's memory space, or indirectly by analyzing network packets. The server should avoid sending the information to begin with, which entirely precludes the possibility of wallhacks, whether the client is compromised or not. By preventing wallhacks, developers hamstring the capability of cheating software and undercut their value proposition.
+
+Of course, this is easier said than done. Most developers have never attempted to do this, since the process of identifying and culling objects that should be hidden from players is complex and potentially costly in terms of server CPU cycles. Although if the server must replicate fewer objects thanks to an efficient culling algorithm, the total cost might remain the same. In addition, due to the player or object velocity, the object might become visible within a short time. Any proposed solutions need to be able to extrapolate future visibilities by analyzing velocities, and even take latency into account. The server needs to know in advance which objects might become visible soon and accomodate latency by sending them early enough that they arrive just before they are meant to become visible. One of the few developers to take on this challenge, Riot Games, describe their approach in [this blog post](https://technology.riotgames.com/news/demolishing-wallhacks-valorants-fog-war). Their approach seems well suited to the small levels in Valorant, but games with larger levels probably need a different approach. I'm keenly interested in this topic and I hope to discuss network occlusion culling techniques in future posts.
+
+### The Players
+
+Permanent bans for accounts used to cheat has become less effective at curbing cheating. For games with a sale price, there are many websites that facilitate the sale of player accounts for a fraction of the game's retail price. Some people will buy bulk quantities of game accounts during sale periods and sell them later at a discount when a banned cheater needs a fresh copy. For free games, the technique of fingerprinting hardware (HWID) and banning it helped slow down cheaters for a time. In response, cheat software often includes a HWID circumvention technique as a matter of course.
+
+Two factor authentication (2FA) is needed. If 2FA is optional, developers should separate players into a "trusted" pool and "untrusted" pool. Many legitimate players will gladly opt-in to 2FA and other verification techniques if it means they will only play with other players who have also volunteered the same information. Developers might be concerned about the consequences of splitting their playerbase in this way, but an out of control cheating problem will prove far worse for the health of a game than a separated playerbase.
+
+Other aspects of player verification would include details about the environment their game client is running in.
+
+### The Environment
+
+Kernel mode cheats are commonplace. Windows 11 requires Secure Boot and a TPM 2.0 chip, which makes loading kernel mode cheats more difficult, but Microsoft's primary focus with these features is not anticheat. Determined cheaters can still exploit drivers to load their software, and tamper with the Windows installation process by disabling the requirement for Secure Boot and even replacing legitimate drivers within the install package with compromised drivers.
+
+Developers may hesitate to require these security features to be enabled due to the risk of many players with older versions of Windows or out of date hardware being unable to play the game. This risk will gradually fade over time as players upgrade their versions of Windows or hardware. In the meantime, players who enable these features along with 2FA should be placed in the trusted pool, and players without should be placed in the untrusted pool. The HWID technique mentioned above can be bypassed by reformatting a hard drive with a fresh install of Windows, so players with recently installed copies of Windows should be placed in the untrusted pool until later.
+
+Of course, this just scratches the surface of this topic. I've omitted a discussion about aimware and other cheating practices. There are emerging tools and techniques which are changing the way cheating and anticheat operate. For example, an AI based tool which claims to be able to identify cheaters based on nothing more than the client inputs received by the server. In conclusion: release is far too late to consider anticheat. Developers must consider security from the earliest stages of development and build it into every feature added. 
+
+In the next post, I'll talk about countering toxicity. [Part 4](/blog/2024-04-15-Toxicity)

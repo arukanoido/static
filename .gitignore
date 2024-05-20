@@ -19,3 +19,11 @@ pnpm-debug.log*
 
 # macOS-specific files
 .DS_Store
+
+# Language directories to ignore
+astro_tmp_pages_*
+
+# Service Worker
+dev-dist/
+
+.vscode/

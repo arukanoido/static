@@ -1,17 +1,26 @@
 {
-  "name": "static",
-  "version": "0.0.1",
-  "repository": "https://github.com/arukanoido/static.git",
-  "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
-    "build": "astro check && astro build",
-    "preview": "astro preview",
-    "astro": "astro"
-  },
-  "dependencies": {
-    "@astrojs/check": "^0.3.1",
-    "astro": "^3.6.4",
-    "typescript": "^5.3.2"
-  }
+    "name": "static",
+    "version": "0.0.1",
+    "repository": "https://github.com/arukanoido/static.git",
+    "scripts": {
+        "dev": "astro dev",
+        "start": "astro dev",
+        "build": "astro check && astro build",
+        "preview": "astro preview",
+        "astro": "astro"
+    },
+    "devDependencies": {
+        "@astrojs/mdx": "^1.1.0",
+        "@astrojs/preact": "^3.0.0",
+        "@astrojs/sitemap": "^3.0.0",
+        "@astrojs/tailwind": "^5.0.0",
+        "astro": "^3.5.5",
+        "postcss": "^8.4.29"
+    },
+    "dependencies": {
+        "@tailwindcss/typography": "^0.5.10",
+        "astro-lazy-youtube-embed": "^0.3.1",
+        "preact": "^10.15.1",
+        "tailwindcss": "^3.3.5"
+    }
 }

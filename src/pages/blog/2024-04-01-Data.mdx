@@ -1,0 +1,50 @@
+---
+layout: '../../layouts/BlogPost.astro'
+title: Part 2 - Data
+pubDate: 01 April 2024
+description: Part 2 of a series about building multiplayer games using Unreal Engine.
+---
+
+[Part 1](/blog/2024-03-25-Testing) (if you missed it).
+
+Development of multiplayer games has the potential to produce huge amounts of data. If the data is captured, stored, and made available for effective use, it can speed up debugging and highlight regressions in functionality or performance, as well as delivering insights for game designers and players. Developers should consider building a backend system and endpoints for capturing these data alongside development, so that when it is needed, it's there.
+
+- Crash dumps, for debugging. 
+- Bug reports, for debugging.
+- Replays, for profiling and debugging. 
+- Performance metrics, for analyzing performance over time. 
+- Game events, for game designers and players. Game designers can use insights gained from statistics about play to make balance decisions. Players are often interested in statistics about their play and use them as a form of extrinsic motivation.
+
+## Data Driven Debugging
+
+### Crash Dumps
+
+Services like [Sentry](https://sentry.io) or [Backtrace](https://backtrace.io) allow you to upload your debug symbols and provide an endpoint for ingesting crash dumps via a tool like Unreal's Crash Reporter client.
+
+### Bug Reports
+
+Developers have different opinions about what form bug reports should take and whether they encourage their playerbase to submit them or not. If you plan to recruit your playerbase to assist debugging, I have some recommendations. Bug reports should be able to be created from a menu during play. The bug reporting tool should automatically snapshot the player's location in the game world as well as creating a marker point in an associated replay. It can also capture a screenshot and upload it during the submission process. For large scale multiplayer games, level design can be a source of minor bugs and frustrations which players should be able to let you know about. Comparing player locations from multiple reports could be a way of estimating priority by indicating hot spots.
+
+### Replays
+
+In the previous post, I talked about the need for a live-like environment to allow developers to test the later stages of feature development. Replays cover the remaining gap between a live-like environment and a real play session for the purposes of bug finding and profiling. Unreal's replay recording tool captures a stream of packets received over the course of a session, so that viewing the replay recreates the progression of events as they occurred during the recorded session. As the packets are streamed in by the replay, game code is executed, reproducing crashes or bugs and performance issues as encountered during play, with some caveats. Replays aren't always a perfect reproduction of what players saw in a session, and cosmetic bugs might appear there, but not in real play.
+
+The complex nature of dynamic multiplayer games leads to issues that occur intermittently, given the right circumstances. Replays allow you to turn an intermittent issue into a more reproducible issue by recreating the circumstances that led to it. After fixing the issue, it's easier to check if it was actually fixed. Replays can be recorded from the live-like test environment or even real play. Some developers choose to provide replays to their playerbase for review after games. Since they can be useful to both developers and players, it's worth taking the time to set up the infrastructure needed to collect and view replays early on, and use the system frequently to ensure it's working correctly throughout development.
+
+## Data Driven Development
+
+### Stats
+
+Performance metrics are useful from an early stage of development. They can help define budgets for artists, and allow developers to see how they are tracking against those budgets over time. Performance metrics should be collected from a standardized profiling pass. Profiling passes can be run as part of an automated testing sequence after each build. For example, running through a sequence of cameras in a test environment and taking a snapshot of performance at each location. For another example, running through a replay of a game session could serve as a profiling pass. Test pass/fail results and recorded performance data should be collected by the stat gathering service for later viewing in a dashboard. 
+
+Optimization should always come after profiling, so by setting up the profiling technique and recording data, you will be ready for optimization when or if it is needed. Of course, premature optimization is generally a waste of time, (and some consider it the "root of all evil") but the emphasis here is on creating standardized profiling techniques and preparing data collection techniques, not optimization.
+
+### Game Events
+
+For game designers, collection and analysis of game events will ensure that decisions taken will genuinely lead to improvements aligned with their intent. Some designers rely more on community feedback such as social media and surveys. Other designers rely more on data collected from play. But regardless of what you rely on to make design decisions, one thing is clear - if you don't collect the data, you won't be able to use it. It's better to have it and not need it, than need it and not have it.
+
+Recording stats about gameplay is a simple extension of the concept used for performance metrics. The system should be prepared with the view of scaling up to handling live game data when it becomes available. In the live game, as game events occur they should be streamed to the backend service that ingests them. Performance data would be a timestamp, something that identifies the data (e.g average frame time on the game thread), the value, and some data to identify which level it was captured from and which location. Game events would be similar. For example, a timestamp, an ID indicating this event was the start time of a round, and any associated data, such as a level ID and a server ID. 
+
+There are an incredible variety of methods used to store this data. I'll only discuss one possible technique here. You could treat the data stream as a giant database table, with columns acting as schema, and rows containing the values of the recorded data. A round start event will use a subset of the columns, for example just the timestamp, identification, a level identifier, and a server identifier. The remaining columns will be empty. This indicates a sparse column format, which can be efficiently compressed. [Apache Parquet](https://parquet.apache.org) is a file format suitable for this type of data. Once the data is compressed into parquet files, they can be uploaded to an [AWS Redshift](https://aws.amazon.com/redshift/) or similar endpoint. Once stored, a service like [Geckoboard](https://www.geckoboard.com/product/data-sources/amazon-redshift/) can be used to create a dashboard style view of performance or gameplay data for developers to browse. Ingame dashboards can be created for data points of interest to players, like rounds played, rounds won, rounds lost, et cetera.
+
+In the next post, I'll talk about anticheat. [Part 3](/blog/2024-04-08-Anticheat)
